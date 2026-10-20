@@ -3,6 +3,7 @@
 schema = 2
 base_model = "alibaba/qwen3.5-9b"
 name = "Qwen 3.5 9B"
+status = "deprecated"
 
 [modalities]
 input = ["text", "image"]
