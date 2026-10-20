@@ -1,0 +1,26 @@
+# Released with the Grok Imagine API on 2026-01-28: https://x.ai/news (Grok Imagine API)
+# Image and video MIME types: https://docs.x.ai/developers/rest-api-reference/inference/videos (JPEG, PNG or WebP; MP4)
+# Output: MP4; generated sound is a track inside the MP4, so no audio MIME type is listed.
+schema = 2
+v2_only = true
+type = "video"
+name = "Grok Imagine Video"
+description = "Fast text-, image- and reference-to-video model with audio, plus video editing"
+family = "grok"
+open_weights = false
+release_date = "2026-01-28"
+
+[modalities]
+input = ["text", "image/jpeg", "image/png", "image/webp", "video/mp4"]
+output = ["video/mp4"]
+
+[capabilities]
+tools = { supported = false }
+reasoning = { supported = false }
+temperature = false
+top_p = false
+top_k = false
+
+[limit]
+context = 0
+output = 0
