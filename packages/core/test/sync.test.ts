@@ -38,6 +38,7 @@ import {
   type EdenAIModel,
 } from "../src/sync/providers/edenai.js";
 import { buildHyperModel, type HyperModel } from "../src/sync/providers/hyper.js";
+import { buildHuggingFaceModel, huggingface, type HuggingFaceModel } from "../src/sync/providers/huggingface.js";
 import {
   buildInceptronModel,
   parseInceptronModels,
@@ -6437,4 +6438,60 @@ test("Kilo sync keeps the catalog display name on linked files", () => {
   // A linked file that inherits the lab's name keeps inheriting it.
   const unnamed = { base_model } as ExistingModel;
   expect(buildKiloModel(model!, unnamed, undefined, unnamed)).not.toHaveProperty("name");
+});
+
+function huggingFaceModel(overrides: Partial<HuggingFaceModel> = {}): HuggingFaceModel {
+  return {
+    id: "Qwen/Qwen3.5-122B-A10B",
+    architecture: { input_modalities: ["text", "image"], output_modalities: ["text"] },
+    providers: [
+      { provider: "slow", status: "live", context_length: 131_072, pricing: { input: 0.3, output: 2 }, throughput: 10, supports_tools: true },
+      { provider: "fast", status: "live", context_length: 262_144, pricing: { input: 0.4, output: 3.2 }, throughput: 90, supports_structured_output: true },
+    ],
+    ...overrides,
+  };
+}
+
+test("Hugging Face creates v2 files with host data only and the lab's exact MIME types", () => {
+  const doc = buildHuggingFaceModel(huggingFaceModel(), "alibaba/qwen3.5-122b-a10b");
+  for (const key of ["name", "description", "family", "release_date", "last_updated", "knowledge", "open_weights"]) {
+    expect(doc).not.toHaveProperty(key);
+  }
+  expect(doc).toMatchObject({
+    schema: 2,
+    base_model: "alibaba/qwen3.5-122b-a10b",
+    // The router lists text + image; the lab also takes video.
+    modalities: {
+      input: ["text", "image/bmp", "image/jpeg", "image/png", "image/tiff", "image/webp", "image/heic"],
+      output: ["text"],
+    },
+    capabilities: {
+      tools: { supported: true, updates: false },
+      reasoning: { supported: true },
+      structured_output: true,
+      effort_updates: false,
+    },
+    cost: { text: { input: { price: 0.4 }, output: { price: 3.2 } } },
+  });
+  expect(doc).not.toHaveProperty("limit");
+
+  // Same modality kinds as the lab: inherited.
+  const textOnly = buildHuggingFaceModel(huggingFaceModel({
+    id: "openai/gpt-oss-20b",
+    architecture: { input_modalities: ["text"], output_modalities: ["text"] },
+  }), "openai/gpt-oss-20b");
+  expect(textOnly).not.toHaveProperty("modalities");
+});
+
+test("Hugging Face writes existing files back unchanged", () => {
+  const v2 = { schema: 2, base_model: "alibaba/qwen3.5-122b-a10b", cost: { text: { input: { price: 9 }, output: { price: 9 } } } };
+  expect(huggingface.translateModel(huggingFaceModel(), {
+    existing: () => ({ base_model: "alibaba/qwen3.5-122b-a10b" }),
+    authored: () => ({ base_model: "alibaba/qwen3.5-122b-a10b" }),
+    v2: () => v2,
+  })).toEqual({ id: "Qwen/Qwen3.5-122B-A10B", v2 });
+  expect(huggingface.translateModel(huggingFaceModel({ providers: [] }), {
+    existing: () => undefined,
+    authored: () => undefined,
+  })).toBeUndefined();
 });
